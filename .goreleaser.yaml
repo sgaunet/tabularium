@@ -1,0 +1,88 @@
+version: 2
+
+project_name: tabularium
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: tabularium
+    main: ./cmd/tabularium
+    binary: tabularium
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X internal/cli.Version={{ .Version }}
+      - -X internal/cli.Commit={{ .Commit }}
+      - -X internal/cli.Date={{ .Date }}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "checksums.txt"
+
+sboms:
+  - artifacts: archive
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+
+homebrew_casks:
+  - name: tabularium
+    homepage: "https://github.com/sgaunet/tabularium"
+    description: "tabularium"
+    binaries:
+      - tabularium
+    generate_completions_from_executable:
+      args:
+        - completion
+      shell_parameter_format: cobra
+      shells:
+        - bash
+        - zsh
+        - fish
+    # Unsigned binaries are quarantined by macOS Gatekeeper; strip the attribute.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}"]
+          end
+    commit_author:
+      name: sgaunet
+      email: sgaunet@users.noreply.github.com
+    repository:
+      owner: sgaunet
+      name: homebrew-tools
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+
+
+# gitea_urls:
+#   api: https://git.sylvlab.fr/api/v1
+#   download: https://git.sylvlab.fr
+#   # set to true if you use a self-signed certificate
+#   skip_tls_verify: false

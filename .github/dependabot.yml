@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # GitHub Actions: low priority. Monthly, batched into a single PR, and
+  # capped so it never crowds out the Go queue.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: monthly
+      time: "07:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 3
+    groups:
+      github-actions:
+        patterns:
+          - "*"
