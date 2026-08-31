@@ -35,6 +35,33 @@ linters:
     - wsl
     - wsl_v5
     - gomodguard
+    # This tool's documents are French, and its tests deliberately feed it
+    # Japanese to check that transliteration degrades predictably. gosmopolitan
+    # exists to find hardcoded locale strings in an i18n'd application, which
+    # this is not.
+    - gosmopolitan
+
+  settings:
+    exhaustive:
+      # A switch over document.Kind with a default is exhaustive: the default
+      # is what reports a kind the supported set and the switch disagree about.
+      default-signifies-exhaustive: true
+
+    misspell:
+      ignore-rules:
+        # French, not misspelt English. The corpus and the example
+        # configuration are both French by design.
+        - vehicule
+        - vehicules
+
+    tagliatelle:
+      # The configuration file's keys are snake_case: that is the published
+      # contract in specs/001-document-triage/contracts/config.example.yaml,
+      # and it is what a hand-written YAML file conventionally looks like.
+      case:
+        rules:
+          yaml: snake
+          json: snake
 
 formatters:
   enable:

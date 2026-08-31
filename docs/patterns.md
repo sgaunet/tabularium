@@ -24,8 +24,8 @@ the CLI layer can map them onto exit codes without importing the whole world.
 ## Exit Codes
 
 `0` success, `1` runtime failure, `2` usage error — documented in `--help` and covered by
-a test. Cobra sets none of its own: `Execute()` returns an error and the scaffolded `main`
-exits 1 for everything, so `main` must classify explicitly.
+a test. The command layer sets none of its own: `cli.Run` returns an error and a
+scaffolded `main` exits 1 for everything, so `main` must classify explicitly.
 
 ```go
 func main() {
@@ -71,7 +71,7 @@ Packages are named for the domain they serve. `utils`, `helpers`, `common` and `
 forbidden — they attract unrelated code and grow into import cycles.
 
 Business logic imports no CLI package. The test for this is mechanical: if a package
-cannot be exercised without constructing a `cobra.Command`, it is in the wrong place.
+cannot be exercised without constructing a `flag.FlagSet`, it is in the wrong place.
 
 ## Concurrency and Cancellation
 

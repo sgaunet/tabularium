@@ -1,0 +1,16 @@
+# Build output
+/tabularium
+/dist/
+*.exe
+*.test
+*.out
+profile.cov
+
+# Go
+vendor/
+
+# Editor and OS
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp

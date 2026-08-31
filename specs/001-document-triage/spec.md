@@ -326,6 +326,10 @@ vérifier qu'aucune reconnaissance de texte n'est refaite et qu'aucun fichier n'
 - **FR-057**: Le fichier annexe MUST enregistrer le code de sortie de la commande externe et sa sortie
   brute, tronquée à une taille bornée. Le programme MUST NOT chercher à en extraire un identifiant :
   il ne présume d'aucun format, et la trace reste lisible par un humain.
+- **FR-057a**: La sortie de la commande externe MUST être répercutée sur le canal de diagnostic au
+  fil de son arrivée, chaque ligne étant préfixée du nom de la commande dont elle provient. Le mode
+  silencieux MAY la supprimer quand la commande réussit, mais MUST NOT la supprimer quand elle
+  échoue : ce que la commande a dit est la seule chose qui indique quoi corriger.
 - **FR-058**: Les secrets destinés à la commande externe MUST lui parvenir par l'environnement et
   MUST NOT figurer dans la ligne de commande.
 - **FR-059**: Un code de sortie non nul de la commande externe MUST être traité comme un échec de

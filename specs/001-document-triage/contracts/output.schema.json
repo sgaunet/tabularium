@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sgaunet/tabularium/contracts/output.schema.json",
+  "title": "tabularium --output=json",
+  "$comment": "Contract FR-064, FR-066, SC-005. One object per invocation, written to stdout and nothing else. Diagnostics never appear here (FR-067). Breaking this shape breaks callers: Principle II makes it a public contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "source", "action", "metadata"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Output schema version. Incremented only on a breaking change."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "size", "digest"],
+      "properties": {
+        "path": { "type": "string" },
+        "type": {
+          "type": "string",
+          "description": "The MIME type detected from content, never from the extension (FR-002)."
+        },
+        "size": { "type": "integer", "minimum": 0 },
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Hex SHA-256 of the source bytes."
+        }
+      }
+    },
+    "action": {
+      "type": "string",
+      "enum": ["filed", "duplicate", "planned", "extracted", "not-filed"],
+      "description": "filed — written to destination. duplicate — identical content already there, nothing written, exit 0 (FR-049). planned — --dry-run, nothing written (FR-043). extracted — --no-analysis, text only (FR-019). not-filed — filing disabled by flag (FR-062)."
+    },
+    "destination": {
+      "type": ["string", "null"],
+      "description": "Path relative to the archive root. Null when nothing was placed. Present and non-null for action=filed, duplicate, and planned."
+    },
+    "rule": {
+      "type": ["string", "null"],
+      "description": "Name of the first rule that matched (FR-037, FR-066). Null when no filing was computed."
+    },
+    "disposition": {
+      "type": ["string", "null"],
+      "enum": ["move", "copy", "keep", null],
+      "description": "What became of the source (FR-042)."
+    },
+    "text": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["origin"],
+      "properties": {
+        "origin": {
+          "type": "string",
+          "enum": ["text-layer", "vision", "office", "plain"],
+          "description": "How the text was obtained. text-layer means zero model calls were made (FR-006, SC-001)."
+        },
+        "content": {
+          "type": ["string", "null"],
+          "description": "The extracted text. Present only for action=extracted (--no-analysis); omitted otherwise to keep the common output small."
+        }
+      }
+    },
+    "truncation": {
+      "type": ["object", "null"],
+      "$comment": "FR-008, SC-010 — null when nothing was dropped. Never omitted silently: the field is always present so a consumer can distinguish 'no truncation' from 'the tool forgot to say'.",
+      "additionalProperties": false,
+      "required": ["pages_processed", "pages_total"],
+      "properties": {
+        "pages_processed": { "type": "integer", "minimum": 0 },
+        "pages_total": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "metadata": {
+      "type": ["object", "null"],
+      "$comment": "The locally validated and normalised metadata (FR-031). Null when --no-analysis was given. No field here names a folder (FR-016).",
+      "additionalProperties": false,
+      "required": ["title", "type", "tags"],
+      "properties": {
+        "title": { "type": "string" },
+        "type": {
+          "type": "string",
+          "description": "Always a member of the configured closed vocabulary (FR-026, FR-028)."
+        },
+        "correspondent": { "type": ["string", "null"] },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Lowercased and deduplicated (FR-031)."
+        },
+        "document_date": { "type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "due_date": { "type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "reference": { "type": ["string", "null"] },
+        "description": { "type": ["string", "null"] },
+        "amount": {
+          "type": ["string", "null"],
+          "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+          "$comment": "A decimal string, never a JSON number: binary floating point cannot represent 19.99 exactly, and this value is money."
+        },
+        "currency": { "type": ["string", "null"], "pattern": "^[A-Z]{3}$" }
+      }
+    },
+    "archive": {
+      "type": ["object", "null"],
+      "$comment": "FR-057, FR-059, FR-066. Null when the archiver is unconfigured or disabled (FR-062).",
+      "additionalProperties": false,
+      "required": ["attempted", "success"],
+      "properties": {
+        "attempted": { "type": "boolean" },
+        "success": { "type": "boolean" },
+        "exit_code": { "type": ["integer", "null"] },
+        "output": {
+          "type": ["string", "null"],
+          "description": "Combined stdout and stderr, verbatim, truncated to 8 KiB. Never parsed for an identifier (FR-057)."
+        },
+        "error": { "type": ["string", "null"] }
+      }
+    }
+  },
+  "examples": [
+    {
+      "version": 1,
+      "source": {
+        "path": "/home/sylvain/Scans/facture.pdf",
+        "type": "application/pdf",
+        "size": 184320,
+        "digest": "9f2c0e4b1a7d63f85c1e2b90a4d7f6e3c85b19a0d24f7e6c3b8a15d09e4f72c6"
+      },
+      "action": "filed",
+      "destination": "factures/voiture/2025/2025-03-14-facture-voiture.pdf",
+      "rule": "factures-voiture",
+      "disposition": "move",
+      "text": { "origin": "vision", "content": null },
+      "truncation": null,
+      "metadata": {
+        "title": "Facture entretien véhicule",
+        "type": "facture",
+        "correspondent": "Garage Central",
+        "tags": ["voiture", "entretien"],
+        "document_date": "2025-03-14",
+        "due_date": "2025-04-14",
+        "reference": "FA-2025-0312",
+        "description": "Révision annuelle et remplacement des plaquettes de frein.",
+        "amount": "384.50",
+        "currency": "EUR"
+      },
+      "archive": {
+        "attempted": true,
+        "success": true,
+        "exit_code": 0,
+        "output": "Document 4127 created\n",
+        "error": null
+      }
+    },
+    {
+      "version": 1,
+      "source": {
+        "path": "/home/sylvain/Scans/facture.pdf",
+        "type": "application/pdf",
+        "size": 184320,
+        "digest": "9f2c0e4b1a7d63f85c1e2b90a4d7f6e3c85b19a0d24f7e6c3b8a15d09e4f72c6"
+      },
+      "action": "duplicate",
+      "destination": "factures/voiture/2025/2025-03-14-facture-voiture.pdf",
+      "rule": "factures-voiture",
+      "disposition": "keep",
+      "text": { "origin": "text-layer", "content": null },
+      "truncation": null,
+      "metadata": {
+        "title": "Facture entretien véhicule",
+        "type": "facture",
+        "correspondent": "Garage Central",
+        "tags": ["voiture", "entretien"],
+        "document_date": "2025-03-14",
+        "due_date": null,
+        "reference": "FA-2025-0312",
+        "description": null,
+        "amount": null,
+        "currency": null
+      },
+      "archive": null
+    }
+  ]
+}

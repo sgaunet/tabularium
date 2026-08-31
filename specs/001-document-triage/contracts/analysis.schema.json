@@ -1,0 +1,82 @@
+{
+  "$comment": "Contract FR-016, FR-022, FR-023, FR-025 — the schema transmitted to the analysis endpoint in response_format.json_schema.schema, and the shape re-validated locally on the way back. The enum in `type` is substituted at runtime from the configured vocabulary (FR-026, FR-027); it is shown here with example values. No field names a folder (FR-016). additionalProperties is false and every property is required, because OpenAI-compatible strict mode demands both — optional fields are expressed as a nullable type, not by omission from `required`.",
+  "name": "document_metadata",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "title",
+      "type",
+      "correspondent",
+      "tags",
+      "document_date",
+      "due_date",
+      "reference",
+      "description",
+      "amount",
+      "currency",
+      "filename"
+    ],
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "A short human-readable title for the document, in the document's own language."
+      },
+      "type": {
+        "type": "string",
+        "description": "The kind of document. Choose the single closest value. If none clearly applies, choose the fallback value.",
+        "enum": [
+          "facture",
+          "releve-bancaire",
+          "contrat",
+          "courrier",
+          "bulletin-de-paie",
+          "attestation",
+          "autre"
+        ]
+      },
+      "correspondent": {
+        "type": ["string", "null"],
+        "description": "The organisation or person the document is from. Null if not determinable."
+      },
+      "tags": {
+        "type": "array",
+        "description": "Lowercase keywords describing the document's subject. Never a folder or a path.",
+        "items": { "type": "string" }
+      },
+      "document_date": {
+        "type": ["string", "null"],
+        "description": "The date the document itself bears, as YYYY-MM-DD. Null if the document bears no date. Never today's date.",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      },
+      "due_date": {
+        "type": ["string", "null"],
+        "description": "A payment or response deadline, as YYYY-MM-DD. Null if none.",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      },
+      "reference": {
+        "type": ["string", "null"],
+        "description": "An invoice number, contract reference, or customer number. Null if none."
+      },
+      "description": {
+        "type": ["string", "null"],
+        "description": "One sentence on what the document is about. Null if not determinable."
+      },
+      "amount": {
+        "type": ["string", "null"],
+        "description": "The principal monetary amount as a decimal string, e.g. \"1234.56\". Null if the document states none. Must be accompanied by currency.",
+        "pattern": "^-?[0-9]+(\\.[0-9]+)?$"
+      },
+      "currency": {
+        "type": ["string", "null"],
+        "description": "ISO 4217 code for the amount, e.g. \"EUR\". Null if the document states no amount.",
+        "pattern": "^[A-Z]{3}$"
+      },
+      "filename": {
+        "type": "string",
+        "description": "A proposed base filename describing the document, without extension, without any date prefix, and without any path separator. Lowercase words joined by hyphens."
+      }
+    }
+  }
+}

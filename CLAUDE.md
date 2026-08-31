@@ -78,10 +78,10 @@ through an OpenAI-compatible endpoint, local or remote by configuration alone), 
 tags and a more descriptive filename, files it into a local tree by ordered rules, then
 hands it to a configurable external archiver.
 
-**The project is pre-implementation.** The tooling is scaffolded — Taskfile, mise,
-golangci-lint, goreleaser, GitHub Actions — but there is no `go.mod` and no source yet.
-Work is driven by Spec Kit: `.specify/memory/constitution.md` governs, and
-`specs/001-document-triage/spec.md` holds the current feature (76 requirements).
+Feature `001-document-triage` is implemented: all four user stories, `cmd/tabularium`
+and twelve `internal/` packages, with the tests beside them. Work is driven by Spec Kit:
+`.specify/memory/constitution.md` governs, and `specs/001-document-triage/spec.md` holds
+the feature (76 requirements).
 
 ## Constitution — binding
 
@@ -93,8 +93,8 @@ stated. In practice:
   without it. Tests are black box — `package <pkg>_test`; internals are reached through
   `export_test.go`, never by moving the test back into the package.
 - **Pipe-safe output.** stdout carries data only, `--output=text|json`; logs, errors and
-  progress go to stderr. Exit codes `0`/`1`/`2`, documented in `--help` and tested. Cobra
-  exits 1 for everything, so code `2` is wired in `main`.
+  progress go to stderr. Exit codes `0`/`1`/`2`, documented in `--help` and tested. A
+  scaffolded `main` exits 1 for everything, so code `2` is wired in `main` explicitly.
 - **Thin commands.** Business logic lives in domain-named packages that import no CLI
   package. `utils`, `helpers`, `common` and `base` are forbidden.
 - **Stdlib first.** A new direct dependency needs the author's approval before it lands,
@@ -104,10 +104,8 @@ stated. In practice:
 
 ## Architecture
 
-Target layout, not yet created:
-
 - `cmd/tabularium/` — `main.go` wires exit codes and the signal-cancelled context
-- `internal/cli/` — thin cobra wrappers: parse, validate, call, format
+- `internal/cli/` — thin stdlib `flag` wrappers: parse, validate, call, format
 - `internal/<domain>/` — business logic, importing no CLI package
 
 See `docs/architecture.md` for the pipeline and the design decisions behind it.
@@ -147,7 +145,7 @@ Conventions the linter does not enforce:
 
 ## File Locations
 
-- **Source**: `cmd/`, `internal/` (to be created)
+- **Source**: `cmd/tabularium/`, `internal/`
 - **Tests**: beside the code they test, in `package <pkg>_test`
 - **Specs**: `specs/001-document-triage/`
 - **Constitution**: `.specify/memory/constitution.md`

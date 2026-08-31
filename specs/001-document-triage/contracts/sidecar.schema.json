@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sgaunet/tabularium/contracts/sidecar.schema.json",
+  "title": "tabularium sidecar",
+  "$comment": "Contract FR-051, FR-052, FR-053, FR-057. Written as <archived-filename>.tabularium.json beside the archived file, on every successful filing — it is a trace of the processing, not an error log. JSON rather than YAML because it is machine-written and machine-read, never hand-edited. A file that fails to parse, carries an unknown `version`, or whose `source_digest` does not match the file it sits beside is treated as ABSENT: the anomaly is logged to stderr and the document is reprocessed from the start (FR-053). The bytes always win over the sidecar.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "source", "source_digest", "metadata", "rule", "filed_at", "archive"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Sidecar schema version. A value this build does not know means the sidecar is treated as absent."
+    },
+    "source": {
+      "type": "string",
+      "description": "The path the document was filed from (FR-051)."
+    },
+    "source_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Hex SHA-256 of the source bytes. On re-run this is compared against the accompanying file; a mismatch means the sidecar belongs to something else and is treated as absent (FR-053)."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "The validated, normalised metadata, in the same shape as output.schema.json#/properties/metadata.",
+      "additionalProperties": false,
+      "required": ["title", "type", "tags"],
+      "properties": {
+        "title": { "type": "string" },
+        "type": { "type": "string" },
+        "correspondent": { "type": ["string", "null"] },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "document_date": { "type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "due_date": { "type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "reference": { "type": ["string", "null"] },
+        "description": { "type": ["string", "null"] },
+        "amount": { "type": ["string", "null"], "pattern": "^-?[0-9]+(\\.[0-9]+)?$" },
+        "currency": { "type": ["string", "null"], "pattern": "^[A-Z]{3}$" }
+      }
+    },
+    "rule": {
+      "type": "string",
+      "description": "Name of the rule that decided the destination (FR-037)."
+    },
+    "filed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp of the filing (FR-051)."
+    },
+    "truncation": {
+      "type": ["object", "null"],
+      "$comment": "FR-008, FR-051 — recorded so the fact survives the run that discovered it.",
+      "additionalProperties": false,
+      "required": ["pages_processed", "pages_total"],
+      "properties": {
+        "pages_processed": { "type": "integer", "minimum": 0 },
+        "pages_total": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "archive": {
+      "type": "object",
+      "$comment": "The state of the external hand-off (FR-051). This is what makes FR-052 possible: attempted=true with success=false is the signal to replay only the hand-off on the next run, and success=true means there is nothing left to do (exit 0).",
+      "additionalProperties": false,
+      "required": ["attempted", "success"],
+      "properties": {
+        "attempted": { "type": "boolean" },
+        "success": { "type": "boolean" },
+        "exit_code": {
+          "type": ["integer", "null"],
+          "description": "The external command's own exit code (FR-059)."
+        },
+        "output": {
+          "type": ["string", "null"],
+          "description": "Combined stdout and stderr, verbatim, truncated to 8 KiB (FR-057). Never parsed for an identifier: the archiver is a black box, and this trace is for a human to read."
+        },
+        "error": {
+          "type": ["string", "null"],
+          "description": "Why the step failed when it failed before producing an exit code — binary not found (FR-060), timeout (FR-056)."
+        },
+        "attempted_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    }
+  },
+  "examples": [
+    {
+      "version": 1,
+      "source": "/home/sylvain/Scans/facture.pdf",
+      "source_digest": "9f2c0e4b1a7d63f85c1e2b90a4d7f6e3c85b19a0d24f7e6c3b8a15d09e4f72c6",
+      "metadata": {
+        "title": "Facture entretien véhicule",
+        "type": "facture",
+        "correspondent": "Garage Central",
+        "tags": ["voiture", "entretien"],
+        "document_date": "2025-03-14",
+        "due_date": "2025-04-14",
+        "reference": "FA-2025-0312",
+        "description": "Révision annuelle et remplacement des plaquettes de frein.",
+        "amount": "384.50",
+        "currency": "EUR"
+      },
+      "rule": "factures-voiture",
+      "filed_at": "2025-03-16T09:41:12+01:00",
+      "truncation": null,
+      "archive": {
+        "attempted": true,
+        "success": false,
+        "exit_code": null,
+        "output": null,
+        "error": "dial tcp 127.0.0.1:8000: connect: connection refused",
+        "attempted_at": "2025-03-16T09:41:13+01:00"
+      }
+    }
+  ]
+}

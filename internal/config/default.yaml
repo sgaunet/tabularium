@@ -1,0 +1,170 @@
+# Starter configuration for tabularium.
+#
+# FR-017, FR-026, FR-029, FR-030, FR-037 … FR-039, FR-042, FR-054 … FR-058, FR-072.
+# Location: $XDG_CONFIG_HOME/tabularium/config.yaml, or --config PATH.
+# Decoded strictly: an unknown key is a usage error at startup, not a silently
+# ignored setting. Precedence is flags > environment > this file > defaults.
+#
+# This file is embedded in the binary with //go:embed (Principle VII), so
+# `tabularium` never depends on a file sitting next to it. It is kept identical
+# in substance to specs/001-document-triage/contracts/config.example.yaml, which
+# is the contract; a test loads and validates this copy on every run.
+
+# Where the archive tree lives. Every destination resolves inside this root and
+# nothing can escape it: writes go through os.Root, so a traversal or a symlink
+# pointing outside fails at the syscall, not at a string comparison (FR-041).
+archive_root: ~/Documents/Archive
+
+# What becomes of the source once it has been filed (FR-042).
+# move (default) | copy | keep
+disposition: move
+
+# ---------------------------------------------------------------------------
+# Models — OCR and analysis are configured independently (FR-017). Local and
+# remote differ by base_url alone; no behaviour and no code path branches on it
+# (FR-012). Any OpenAI-compatible /chat/completions endpoint works.
+# ---------------------------------------------------------------------------
+
+ocr:
+  base_url: http://localhost:11434/v1
+  model: qwen2.5vl:7b
+  timeout: 120s          # explicit, as every I/O must be (FR-075)
+  max_pages: 20          # pages beyond this are dropped, and the truncation is
+                         # recorded and reported — never silent (FR-008)
+  dpi: 200               # rasterisation resolution for pdftoppm
+  # api_key_env names the environment variable holding the credential. The value
+  # is never written here and never reaches a log, an error message, or an argv
+  # (FR-073, SC-008).
+  api_key_env: TABULARIUM_OCR_API_KEY
+
+analysis:
+  base_url: http://localhost:11434/v1
+  model: qwen2.5:14b
+  timeout: 120s
+  retries: 3             # bounded, backed off 1s/2s/4s with jitter (FR-076)
+  api_key_env: TABULARIUM_ANALYSIS_API_KEY
+  # The analysis model MUST honour response_format.json_schema. This is a
+  # prerequisite, not a preference: an endpoint that ignores it is reported as
+  # invalid configuration, by name, rather than failing intermittently (FR-024).
+
+# ---------------------------------------------------------------------------
+# Vocabularies — the closed sets the model may choose from (FR-026, FR-027).
+# These are transmitted as the schema's `enum`, so the constraint applies at
+# generation time; the response is then re-validated locally anyway, because a
+# service honouring the constraint is never assumed (FR-025, FR-028).
+# ---------------------------------------------------------------------------
+
+types:
+  # `fallback` is mandatory and must appear in `values` (FR-029). Its purpose is
+  # that a document the model cannot place stays RECOGNISABLE as unplaced, rather
+  # than being filed somewhere plausible and wrong.
+  fallback: autre
+  values:
+    - facture
+    - releve-bancaire
+    - contrat
+    - courrier
+    - bulletin-de-paie
+    - attestation
+    - autre
+
+tags:
+  # Omit `values` to leave tags free (FR-030). Bounding them is strongly advised
+  # as soon as a rule conditions on a tag: a free tag phrased differently from
+  # what a rule expects does not misfile the document, but it does make it fall
+  # through to the default rule, and those pile up unnoticed.
+  values:
+    - voiture
+    - entretien
+    - assurance
+    - sante
+    - impots
+    - energie
+    - telecom
+    - banque
+
+# ---------------------------------------------------------------------------
+# Rules — ORDERED. The first rule that matches decides the path, alone (FR-037).
+#
+# A rule may condition on `type` (equality), `tags` (ALL listed must be present),
+# and `correspondent` (equality). A rule with no condition is the default rule;
+# there may be at most one (FR-038).
+#
+# Every directory level is written literally in `path`. The template has no
+# .Folder field and no way to name one (FR-039) — which is what makes the
+# complete set of destinations readable right here, in this file (SC-014). A
+# model mistake can move a document between two declared folders; it can never
+# invent a third.
+#
+# Template fields: .Type .Correspondent .Reference .Title .Year .Month .Day .Tags
+# Date parts are zero-padded strings, so .Month renders 03 and paths sort right.
+# Templates are parsed at load: a malformed one is a usage error before any
+# document is read.
+# ---------------------------------------------------------------------------
+
+rules:
+  - name: factures-voiture
+    type: facture
+    tags: [voiture]
+    path: "factures/voiture/{{.Year}}"
+
+  - name: factures-sante
+    type: facture
+    tags: [sante]
+    path: "factures/sante/{{.Year}}"
+
+  - name: factures
+    type: facture
+    path: "factures/{{.Correspondent}}/{{.Year}}"
+
+  - name: releves-bancaires
+    type: releve-bancaire
+    path: "banque/{{.Correspondent}}/{{.Year}}"
+
+  - name: contrats
+    type: contrat
+    path: "contrats/{{.Correspondent}}"
+
+  - name: paie
+    type: bulletin-de-paie
+    path: "paie/{{.Year}}"
+
+  # Default rule — no condition. Without one, a document that matches nothing is
+  # a runtime failure naming the document, and nothing moves (FR-040).
+  - name: divers
+    path: "divers/{{.Year}}"
+
+# ---------------------------------------------------------------------------
+# External archiver — a black box, described entirely here (FR-054). The tool
+# presumes no particular product.
+# ---------------------------------------------------------------------------
+
+archive:
+  command: paperless-cli
+
+  # Each entry is its own template and is passed as a DISTINCT element of argv.
+  # No shell is involved, so there are no quoting rules to get wrong (FR-055).
+  args:
+    - documents
+    - upload
+    - "--title"
+    - "{{.Title}}"
+    - "--correspondent"
+    - "{{.Correspondent}}"
+    - "--created"
+    - "{{.DocumentDate}}"
+    - "{{.Path}}"
+
+  # Rendered once per tag, so every tag arrives as its own argument (FR-055).
+  args_each_tag: ["--tag", "{{.}}"]
+
+  # Explicit, and on expiry the whole process GROUP is killed — not just the
+  # direct child, which would leave grandchildren running (FR-056).
+  timeout: 60s
+
+  # Names of environment variables forwarded to the command. Credentials reach
+  # it through the environment and never through argv, which is world-readable
+  # via ps and /proc (FR-058, FR-073).
+  env:
+    - PAPERLESS_URL
+    - PAPERLESS_TOKEN

@@ -24,13 +24,14 @@ document
 
 ## Components
 
-Target layout. None of it exists yet — the repository is at the specification stage.
-
 - `cmd/tabularium/` — `main.go` only: wires the exit codes `0`/`1`/`2` and a
-  `context.Context` cancelled on SIGINT/SIGTERM. Cobra returns an error and would exit 1
-  for everything, so code `2` is mapped explicitly here.
-- `internal/cli/` — thin cobra wrappers. Parse, validate, call, format. No business
-  logic, so every rule below stays testable without a terminal.
+  `context.Context` cancelled on SIGINT/SIGTERM. `cli.Run` returns an error and a
+  scaffolded `main` would exit 1 for everything, so code `2` is mapped explicitly here
+  with `errors.As` on `*cli.UsageError`.
+- `internal/cli/` — thin wrappers over the standard library's `flag`. Parse, validate,
+  call, format. No business logic, so every rule below stays testable without a terminal.
+  `flag.ContinueOnError` is mandatory: `ExitOnError` calls `os.Exit(2)` itself and would
+  bypass the classification in `main`.
 - `internal/<domain>/` — the work itself, in packages named for the domain they serve.
   Constitution III forbids `utils`, `helpers`, `common` and `base`.
 
@@ -68,7 +69,9 @@ filing, and external hand-off.
 
 6. **Local filing survives an external failure.** If filing succeeds and the archiver
    fails, the file stays filed, the error goes to stderr, and the exit code is 1. A
-   sidecar records what was done, so re-running replays only the missing hand-off.
+   sidecar records what was done, so re-running replays only the missing hand-off. The
+   archiver's own output is echoed to stderr as it arrives, prefixed with the command's
+   name: an exit code says the hand-off failed, only the command's words say why.
 
 ## Integration Points
 
@@ -79,7 +82,8 @@ filing, and external hand-off.
   A runtime dependency, documented in `--help` and reported by name when missing.
 - **External archiver** — an arbitrary command described entirely in configuration:
   binary plus templated arguments. Treated as a black box: its exit code decides, its
-  output is recorded raw. No identifier is parsed and no format is presumed.
+  output is recorded raw and shown on stderr. No identifier is parsed and no format is
+  presumed.
 
 ## Data Flow
 

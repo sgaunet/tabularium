@@ -16,9 +16,9 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-      - -X internal/cli.Version={{ .Version }}
-      - -X internal/cli.Commit={{ .Commit }}
-      - -X internal/cli.Date={{ .Date }}
+      - -X github.com/sgaunet/tabularium/internal/cli.Version={{ .Version }}
+      - -X github.com/sgaunet/tabularium/internal/cli.Commit={{ .Commit }}
+      - -X github.com/sgaunet/tabularium/internal/cli.Date={{ .Date }}
     goos:
       - linux
       - darwin
@@ -57,14 +57,10 @@ homebrew_casks:
     description: "tabularium"
     binaries:
       - tabularium
-    generate_completions_from_executable:
-      args:
-        - completion
-      shell_parameter_format: cobra
-      shells:
-        - bash
-        - zsh
-        - fish
+    # No shell completions: tabularium has no subcommands (Principle I), so
+    # there is no `completion` command to generate them from. Leaving the
+    # cobra-shaped block here produced a cask whose install step ran
+    # `tabularium completion bash` and got exit 2.
     # Unsigned binaries are quarantined by macOS Gatekeeper; strip the attribute.
     hooks:
       post:
