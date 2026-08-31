@@ -902,6 +902,70 @@ func TestTheArchiversOutputIsEchoedOnASuccessfulRun(t *testing.T) {
 	}
 }
 
+func TestTheConfigurationIsFoundAtTheDefaultLocationWithoutTheFlag(t *testing.T) {
+	// FR-072: --config names a file; leaving it off means
+	// ~/.config/tabularium/config.yaml, which is where a hand-edited YAML file
+	// belongs on every platform.
+	if runtime.GOOS == "windows" {
+		t.Skip("HOME is not the home-directory variable on Windows")
+	}
+	ws := newWorkspace(t, stubModel(t, metadataJSON(nil)), "")
+	doc := ws.place(t, "notes.txt")
+
+	home := t.TempDir()
+	dir := filepath.Join(home, ".config", "tabularium")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatalf("creating the default configuration directory: %v", err)
+	}
+	body, err := os.ReadFile(ws.config)
+	if err != nil {
+		t.Fatalf("reading the workspace configuration: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), body, 0o600); err != nil {
+		t.Fatalf("writing the default configuration: %v", err)
+	}
+
+	// XDG_CONFIG_HOME is blanked rather than left alone: a developer who sets it
+	// would otherwise send the run somewhere this test did not prepare.
+	got := tabulariumEnv(t, []string{"HOME=" + home, "XDG_CONFIG_HOME="},
+		"--output", "json", doc)
+
+	if got.code != 0 {
+		t.Fatalf("exit code = %d, want 0 — the default location was not read\nstderr:\n%s",
+			got.code, got.stderr)
+	}
+	var out struct {
+		Action string `json:"action"`
+	}
+	if err := json.Unmarshal([]byte(got.stdout), &out); err != nil {
+		t.Fatalf("decoding: %v\n%s", err, got.stdout)
+	}
+	if out.Action != "filed" {
+		t.Errorf("action = %q, want %q", out.Action, "filed")
+	}
+}
+
+func TestNoConfigurationAnywhereNamesThePathItWanted(t *testing.T) {
+	// The old failure was "archive_root is not set", which never mentioned a
+	// configuration file, let alone where to put one.
+	if runtime.GOOS == "windows" {
+		t.Skip("HOME is not the home-directory variable on Windows")
+	}
+	ws := newWorkspace(t, stubModel(t, metadataJSON(nil)), "")
+	doc := ws.place(t, "notes.txt")
+	home := t.TempDir() // no .config/tabularium in it
+
+	got := tabulariumEnv(t, []string{"HOME=" + home, "XDG_CONFIG_HOME="}, doc)
+
+	if got.code != 2 {
+		t.Fatalf("exit code = %d, want 2\nstderr:\n%s", got.code, got.stderr)
+	}
+	want := filepath.Join(home, ".config", "tabularium", "config.yaml")
+	if !strings.Contains(got.stderr, want) {
+		t.Errorf("stderr does not name %q:\n%s", want, got.stderr)
+	}
+}
+
 func TestNoArchiveSkipsTheStepEntirely(t *testing.T) {
 	// FR-062: reported as archive: null, and the run succeeds even though the
 	// configured archiver would have failed.

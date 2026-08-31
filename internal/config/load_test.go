@@ -1,9 +1,11 @@
 package config_test
 
 import (
+	"errors"
 	"flag"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -263,6 +265,52 @@ func TestDefaultPathPrefersXDGConfigHome(t *testing.T) {
 	want := filepath.Join("/xdg", "tabularium", "config.yaml")
 	if got != want {
 		t.Errorf("DefaultPath() = %q, want %q", got, want)
+	}
+}
+
+func TestDefaultPathFallsBackToDotConfig(t *testing.T) {
+	// With XDG_CONFIG_HOME unset, the file belongs beside the user's other
+	// hand-edited configuration. The platform's own directory is not used:
+	// os.UserConfigDir would send macOS to ~/Library/Application Support, which
+	// is not where anyone puts a YAML file they edit by hand.
+	if runtime.GOOS == "windows" {
+		t.Skip("HOME is not the home-directory variable on Windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	got, err := config.DefaultPath(emptyEnv())
+	if err != nil {
+		t.Fatalf("DefaultPath: %v", err)
+	}
+	want := filepath.Join(home, ".config", "tabularium", "config.yaml")
+	if got != want {
+		t.Errorf("DefaultPath() = %q, want %q", got, want)
+	}
+}
+
+func TestNoConfigAtTheDefaultLocationNamesThePath(t *testing.T) {
+	// archive_root has no default and Validate rejects an unset one, so a run
+	// with no configuration was always going to fail. It should fail saying a
+	// configuration file is missing and where, rather than two steps later
+	// complaining about archive_root.
+	if runtime.GOOS == "windows" {
+		t.Skip("HOME is not the home-directory variable on Windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	_, err := config.Load("", emptyEnv())
+	if err == nil {
+		t.Fatal("Load(\"\") with no configuration anywhere = nil error; want a usage error")
+	}
+	var notFound *config.NotFoundError
+	if !errors.As(err, &notFound) {
+		t.Fatalf("Load() error = %v (%T); want a *config.NotFoundError", err, err)
+	}
+	want := filepath.Join(home, ".config", "tabularium", "config.yaml")
+	if !strings.Contains(err.Error(), want) {
+		t.Errorf("Load() error = %v; want it to name %q", err, want)
 	}
 }
 

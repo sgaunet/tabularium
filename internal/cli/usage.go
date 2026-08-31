@@ -47,7 +47,8 @@ Usage:
   tabularium [flags] <file>
 
 Flags:
-  --config PATH        configuration file (default $XDG_CONFIG_HOME/tabularium/config.yaml)
+  --config PATH        configuration file (default $XDG_CONFIG_HOME/tabularium/config.yaml,
+                       or ~/.config/tabularium/config.yaml)
   --output FORMAT      text | json (default text)
   --dry-run            compute and print the plan; write nothing
   --disposition WHAT   move | copy | keep (default move)

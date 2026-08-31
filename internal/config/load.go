@@ -39,17 +39,36 @@ func defaults() *Config {
 }
 
 // DefaultPath is where the configuration lives when --config was not given:
-// $XDG_CONFIG_HOME/tabularium/config.yaml, falling back to the platform's own
-// configuration directory.
+// $XDG_CONFIG_HOME/tabularium/config.yaml, or ~/.config/tabularium/config.yaml
+// when that variable is unset.
+//
+// One rule on every platform, deliberately not os.UserConfigDir: that returns
+// ~/Library/Application Support on macOS and %AppData% on Windows, neither of
+// which is where anyone keeps a YAML file they edit by hand. This configuration
+// belongs beside the user's other dotfile configuration, and a predictable
+// location is worth more here than a native-feeling one.
 func DefaultPath(env Env) (string, error) {
 	if dir, ok := env("XDG_CONFIG_HOME"); ok && dir != "" {
 		return filepath.Join(dir, "tabularium", "config.yaml"), nil
 	}
-	dir, err := os.UserConfigDir()
+	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("locating the configuration directory: %w", err)
 	}
-	return filepath.Join(dir, "tabularium", "config.yaml"), nil
+	return filepath.Join(home, ".config", "tabularium", "config.yaml"), nil
+}
+
+// NotFoundError says no configuration file exists at the default location.
+//
+// A missing file was once tolerated here, on the theory that the defaults could
+// stand alone. They cannot: archive_root has no default and Validate rejects an
+// unset one, so the run was always going to fail — two steps later, with a
+// message that never mentioned a configuration file or where one was expected.
+type NotFoundError struct{ Path string }
+
+func (e *NotFoundError) Error() string {
+	return fmt.Sprintf("no configuration file at %s — create it, or name one with --config PATH",
+		e.Path)
 }
 
 // Load resolves the configuration from defaults, then the file, then the
@@ -76,8 +95,7 @@ func Load(path string, env Env) (*Config, error) {
 			return nil, fmt.Errorf("reading configuration %s: %w", path, err)
 		}
 	case errors.Is(err, os.ErrNotExist) && !explicit:
-		// No configuration yet. The defaults stand alone, and Validate will say
-		// what is still missing.
+		return nil, &NotFoundError{Path: path}
 	default:
 		return nil, fmt.Errorf("reading configuration %s: %w", path, err)
 	}

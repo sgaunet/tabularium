@@ -24,7 +24,7 @@ therefore always describes exactly one document.
 
 | Flag | Type | Default | Requirement |
 |---|---|---|---|
-| `--config <path>` | string | `$XDG_CONFIG_HOME/tabularium/config.yaml` | FR-072 |
+| `--config <path>` | string | `$XDG_CONFIG_HOME/tabularium/config.yaml`, else `~/.config/tabularium/config.yaml` | FR-072 |
 | `--output <text\|json>` | string | `text` | FR-064 |
 | `--dry-run` | bool | `false` | FR-043 |
 | `--disposition <move\|copy\|keep>` | string | `move` | FR-042 |
@@ -155,7 +155,8 @@ Usage:
   tabularium [flags] <file>
 
 Flags:
-  --config PATH        configuration file (default $XDG_CONFIG_HOME/tabularium/config.yaml)
+  --config PATH        configuration file (default $XDG_CONFIG_HOME/tabularium/config.yaml,
+                       or ~/.config/tabularium/config.yaml)
   --output FORMAT      text | json (default text)
   --dry-run            compute and print the plan; write nothing
   --disposition WHAT   move | copy | keep (default move)

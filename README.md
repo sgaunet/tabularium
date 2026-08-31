@@ -64,9 +64,16 @@ One YAML file. Tabularium looks for it in this order:
 
 1. the path given to `--config` — if you name one and it is not there, that is an error,
    not a fallback;
-2. `$XDG_CONFIG_HOME/tabularium/config.yaml`;
-3. your platform's configuration directory — `~/.config/tabularium/config.yaml` on Linux,
-   `~/Library/Application Support/tabularium/config.yaml` on macOS.
+2. `$XDG_CONFIG_HOME/tabularium/config.yaml`, when that variable is set;
+3. `~/.config/tabularium/config.yaml`.
+
+The same rule on every platform, deliberately not the platform's own configuration
+directory: that would be `~/Library/Application Support` on macOS and `%AppData%` on
+Windows, and neither is where anyone keeps a YAML file they edit by hand.
+
+Finding nothing at step 3 is a usage error naming the path it wanted, because
+`archive_root` has no default — a run without a configuration file could never have
+succeeded.
 
 The file is decoded **strictly**: a key Tabularium does not recognise is a usage error at
 startup, not a setting that silently does nothing. That turns a typo into a message

@@ -1,7 +1,8 @@
 # Starter configuration for tabularium.
 #
 # FR-017, FR-026, FR-029, FR-030, FR-037 … FR-039, FR-042, FR-054 … FR-058, FR-072.
-# Location: $XDG_CONFIG_HOME/tabularium/config.yaml, or --config PATH.
+# Location: $XDG_CONFIG_HOME/tabularium/config.yaml, or ~/.config/tabularium/config.yaml,
+# or --config PATH.
 # Decoded strictly: an unknown key is a usage error at startup, not a silently
 # ignored setting. Precedence is flags > environment > this file > defaults.
 #

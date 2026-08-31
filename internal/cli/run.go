@@ -62,7 +62,19 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	}
 
 	log := newLogger(stderr, o)
-	log.Debug("starting", "document", o.document, "config", o.configPath)
+
+	// Resolved for the log, not for Load: an empty path is how Load is told the
+	// location was not chosen by the user, and a missing file there is reported
+	// differently from a missing --config. Logging the raw flag would print ""
+	// on exactly the run where the user needs to know where the tool looked.
+	configPath := o.configPath
+	if configPath == "" {
+		var err error
+		if configPath, err = config.DefaultPath(os.LookupEnv); err != nil {
+			return Usagef("%w", err)
+		}
+	}
+	log.Debug("starting", "document", o.document, "config", configPath)
 
 	cfg, err := config.Load(o.configPath, os.LookupEnv)
 	if err != nil {
