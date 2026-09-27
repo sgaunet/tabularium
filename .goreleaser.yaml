@@ -54,7 +54,8 @@ changelog:
 homebrew_casks:
   - name: tabularium
     homepage: "https://github.com/sgaunet/tabularium"
-    description: "tabularium"
+    description: "Read scanned documents and file them under meaningful names"
+    directory: Casks
     binaries:
       - tabularium
     # No shell completions: tabularium has no subcommands (Principle I), so
@@ -70,7 +71,7 @@ homebrew_casks:
           end
     commit_author:
       name: sgaunet
-      email: sgaunet@users.noreply.github.com
+      email: 1552102+sgaunet@users.noreply.github.com
     repository:
       owner: sgaunet
       name: homebrew-tools
