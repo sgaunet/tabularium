@@ -21,8 +21,6 @@ import (
 // Date held by value still marshals through it, and UnmarshalJSON must take a
 // pointer in order to assign. That is what encoding/json requires, not an
 // oversight.
-//
-//nolint:recvcheck // required by encoding/json, see above
 type Date struct {
 	Year  int
 	Month int
@@ -105,8 +103,6 @@ var currencyPattern = regexp.MustCompile(`^[A-Z]{3}$`)
 // a document between two declared folders but can never invent a third.
 //
 // As with Date, the mixed receivers below are what encoding/json requires.
-//
-//nolint:recvcheck // required by encoding/json, see Date
 type Metadata struct {
 	Title         string
 	Type          string
