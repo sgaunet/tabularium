@@ -33,7 +33,8 @@ func extractImage(ctx context.Context, src document.Source, o Options) (Text, er
 
 	o.logger().Debug("transcribing an image", "path", src.Path, "type", src.Type)
 	content, err := vision.Complete(ctx, chat.Request{
-		User:   transcribePrompt,
+		System: transcribeSystem,
+		User:   transcribeUser,
 		Images: []chat.Image{{MediaType: string(src.Type), Data: body}},
 	})
 	if err != nil {

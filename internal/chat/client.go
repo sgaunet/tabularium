@@ -8,10 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/rand/v2"
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sgaunet/tabularium/internal/config"
 )
@@ -25,6 +27,15 @@ type Options struct {
 	APIKey  config.Credential
 	Timeout time.Duration
 	Retries int
+
+	Log *slog.Logger
+
+	// Trace is where the prompts are written, in full, when the log level
+	// admits Debug. Nil writes none.
+	//
+	// A writer rather than another slog attribute: a prompt is multi-line, and
+	// a TextHandler escapes it into one unreadable line.
+	Trace io.Writer
 }
 
 // Client speaks POST {base_url}/chat/completions to any OpenAI-compatible
@@ -39,6 +50,8 @@ type Client struct {
 	apiKey  config.Credential
 	retries int
 	http    *http.Client
+	log     *slog.Logger
+	trace   io.Writer
 
 	// backoffBase is the first wait; each attempt doubles it. It is a field so
 	// a test can shorten it, because seven seconds of sleeping proves nothing.
@@ -65,6 +78,10 @@ func New(o Options) (*Client, error) {
 	if retries <= 0 {
 		retries = defaultRetries
 	}
+	log := o.Log
+	if log == nil {
+		log = slog.New(slog.DiscardHandler)
+	}
 
 	return &Client{
 		baseURL:     strings.TrimSuffix(o.BaseURL, "/"),
@@ -72,6 +89,8 @@ func New(o Options) (*Client, error) {
 		apiKey:      o.APIKey,
 		retries:     retries,
 		http:        &http.Client{Timeout: timeout},
+		log:         log,
+		trace:       o.Trace,
 		backoffBase: time.Second,
 	}, nil
 }
@@ -140,6 +159,8 @@ type wireResponse struct {
 // Complete sends one request and returns choices[0].message.content — the only
 // field of the response this tool reads.
 func (c *Client) Complete(ctx context.Context, req Request) (string, error) {
+	c.tracePrompt(ctx, req)
+
 	body, err := json.Marshal(c.wire(req))
 	if err != nil {
 		return "", fmt.Errorf("encoding the request: %w", err)
@@ -177,6 +198,26 @@ func (c *Client) Complete(ctx context.Context, req Request) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("%s: giving up after %d attempts: %w", c.baseURL, c.retries, lastErr)
+}
+
+// tracePrompt shows what is about to be sent.
+//
+// Once per Complete rather than once per attempt: the body is marshalled before
+// the retry loop, so every attempt sends the same bytes.
+//
+// The image count is deliberate. An image travels as a base64 data URL of up to
+// 32 MiB, and a count is what a reader can act on — the same reasoning that logs
+// len(argv) rather than argv in internal/archiver.
+func (c *Client) tracePrompt(ctx context.Context, req Request) {
+	if c.trace == nil || !c.log.Enabled(ctx, slog.LevelDebug) {
+		return
+	}
+
+	c.log.Debug("prompt", "model", c.model, "endpoint", c.baseURL,
+		"user_runes", utf8.RuneCountInString(req.User), "images", len(req.Images))
+
+	writeRole(c.trace, "system", elide(req.System))
+	writeRole(c.trace, "user", elide(req.User))
 }
 
 func (c *Client) wire(req Request) wireRequest {

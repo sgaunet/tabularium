@@ -14,4 +14,6 @@ jobs:
         with:
           install: true
           cache: true
+      - name: Install poppler-utils (pdftotext, pdftoppm)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
       - run: task test

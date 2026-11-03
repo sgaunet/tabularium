@@ -27,12 +27,19 @@ const minTextLayerRunes = 64
 // page total is known without a third poppler binary.
 const pageBreak = '\f'
 
-// transcribePrompt asks for the page's text and nothing else.
-const transcribePrompt = `Transcribe all of the text in this image, exactly as it appears.
+// transcribeSystem frames the task, and transcribeUser is the per-request ask.
+//
+// Split the way internal/analysis splits its own: the standing rules belong in
+// the system role, where they are not re-read as part of the thing being
+// transcribed, and the user message carries only what this request is about.
+const transcribeSystem = `You transcribe document images.
 
-Preserve the reading order and the line breaks. Do not summarise, do not
-translate, do not describe the layout, and do not add any commentary. If the
-image contains no text, answer with nothing at all.`
+Answer with the text the image contains and nothing else. Preserve the reading
+order and the line breaks. Never summarise, never translate, never describe the
+layout, and never add commentary. An image with no text is answered with nothing
+at all.`
+
+const transcribeUser = `Transcribe all of the text in this image, exactly as it appears.`
 
 // extractPDF prefers the text layer and rasterises only when there is not one.
 //
@@ -146,7 +153,8 @@ func rasterise(ctx context.Context, src document.Source, o Options,
 		}
 
 		content, err := vision.Complete(ctx, chat.Request{
-			User:   transcribePrompt,
+			System: transcribeSystem,
+			User:   transcribeUser,
 			Images: []chat.Image{{MediaType: "image/png", Data: png}},
 		})
 		if err != nil {

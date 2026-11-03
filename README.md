@@ -41,6 +41,25 @@ The analysis model must support schema-constrained output. This is a requirement
 preference: without the constraint a model answers in prose, and asked merely for "JSON"
 it returns valid JSON with a structure of its own invention.
 
+Each request carries a system prompt with the standing rules and a user prompt with this
+request's content — the document's text and your configured vocabularies for analysis, the
+page image for transcription. `--verbose` prints both, verbatim, before each request:
+
+```console
+$ tabularium --verbose --dry-run facture.pdf
+… level=DEBUG msg=prompt model=ornith:9b endpoint=http://localhost:11434/v1 user_runes=16585 images=0
+  system| You extract metadata from documents.
+  user  | Document text:
+  user  | …
+  user  | … (elided 13513 of 16585 runes) …
+  user  | Choose `type` from exactly these values: facture, releve-bancaire, …
+```
+
+The middle of a long prompt is elided rather than its tail, so the vocabulary block that
+decides the answer is always visible. An attached image is reported as a count; its bytes
+never reach the log. One record per request, so a retry after an unusable reply shows as a
+second one.
+
 ## Output and exit codes
 
 stdout carries data only — the table above, or one JSON object with `--output=json`.
