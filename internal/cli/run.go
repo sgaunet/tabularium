@@ -93,7 +93,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	deps, err := build(cfg, o, log)
+	deps, err := build(cfg, o, log, stderr)
 	if err != nil {
 		return Usagef("%w", err)
 	}
@@ -270,7 +270,7 @@ func writers(cfg *config.Config, o *options, log *slog.Logger, stderr io.Writer,
 // analysis independently configurable — a vision model on this machine and
 // analysis wherever you like. Either may be absent; a document that needs the
 // missing one then fails by name.
-func build(cfg *config.Config, o *options, log *slog.Logger) (triage.Deps, error) {
+func build(cfg *config.Config, o *options, log *slog.Logger, stderr io.Writer) (triage.Deps, error) {
 	deps := triage.Deps{Config: cfg, Log: log}
 	deps.Extract = extract.Options{MaxPages: cfg.OCR.MaxPages, DPI: cfg.OCR.DPI, Log: log}
 
@@ -278,6 +278,7 @@ func build(cfg *config.Config, o *options, log *slog.Logger) (triage.Deps, error
 		vision, err := chat.New(chat.Options{
 			BaseURL: cfg.OCR.BaseURL, Model: cfg.OCR.Model,
 			APIKey: cfg.OCR.APIKey, Timeout: cfg.OCR.Timeout,
+			Log: log, Trace: stderr,
 		})
 		if err != nil {
 			return triage.Deps{}, err
@@ -296,6 +297,7 @@ func build(cfg *config.Config, o *options, log *slog.Logger) (triage.Deps, error
 		BaseURL: cfg.Analysis.BaseURL, Model: cfg.Analysis.Model,
 		APIKey: cfg.Analysis.APIKey, Timeout: cfg.Analysis.Timeout,
 		Retries: cfg.Analysis.Retries,
+		Log:     log, Trace: stderr,
 	})
 	if err != nil {
 		return triage.Deps{}, err

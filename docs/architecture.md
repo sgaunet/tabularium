@@ -77,7 +77,9 @@ filing, and external hand-off.
 
 - **Model endpoint** — any OpenAI-compatible chat-completions service. Local (Ollama,
   llama.cpp, vLLM) and hosted differ by configuration alone. Two independent
-  configurations: one for OCR, one for analysis.
+  configurations: one for OCR, one for analysis. Both requests split standing rules into a
+  system prompt and content into a user prompt, and `--verbose` prints both before the
+  request goes out — with a long prompt's middle elided and an image reduced to a count.
 - **poppler-utils** — `pdftotext` and `pdftoppm`, required only when a PDF is processed.
   A runtime dependency, documented in `--help` and reported by name when missing.
 - **External archiver** — an arbitrary command described entirely in configuration:

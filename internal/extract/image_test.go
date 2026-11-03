@@ -78,6 +78,56 @@ func TestTheImageIsSentWithItsOwnDetectedMediaType(t *testing.T) {
 	}
 }
 
+func TestTheTranscriptionRequestCarriesASystemPrompt(t *testing.T) {
+	// The standing rules belong in the system role, where they are not re-read
+	// as part of the thing being transcribed, exactly as internal/analysis does
+	// it. The user message carries only this request's ask.
+	var body string
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		body = string(raw)
+		reply, _ := json.Marshal(map[string]any{
+			"choices": []any{map[string]any{"message": map[string]any{"content": "some text"}}},
+		})
+		_, _ = w.Write(reply)
+	}))
+	t.Cleanup(s.Close)
+
+	c, err := chat.New(chat.Options{BaseURL: s.URL, Model: "stub", Timeout: 10 * time.Second})
+	if err != nil {
+		t.Fatalf("chat.New: %v", err)
+	}
+
+	o := extract.Options{Vision: c, MaxPages: 20, DPI: 72}
+	if _, err := extract.Extract(context.Background(), corpus(t, "receipt.png"), o); err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+
+	var sent struct {
+		Messages []struct {
+			Role    string `json:"role"`
+			Content any    `json:"content"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal([]byte(body), &sent); err != nil {
+		t.Fatalf("decoding the recorded request: %v\n%s", err, body)
+	}
+	if len(sent.Messages) < 2 || sent.Messages[0].Role != "system" {
+		t.Fatalf("the request carries no system message:\n%s", body)
+	}
+	rules, ok := sent.Messages[0].Content.(string)
+	if !ok {
+		t.Fatalf("the system content is %T, want a string", sent.Messages[0].Content)
+	}
+	if !strings.Contains(rules, "You transcribe document images.") {
+		t.Errorf("the system message does not frame the task:\n%s", rules)
+	}
+	// And the image still travels with the user message, not the system one.
+	if !strings.Contains(body, "data:image/png;base64,") {
+		t.Errorf("the image did not survive the split:\n%s", body)
+	}
+}
+
 func TestTheImageBytesArriveIntact(t *testing.T) {
 	var body string
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
